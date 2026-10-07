@@ -19,6 +19,9 @@
  *   delay             seconds of plain static before    (0)
  *                     the first phrase emerges; counts
  *                     only while the figure is on screen
+ *   href              page to open when the signal is   (none)
+ *                     clicked; becomes a link only after
+ *                     the first phrase has emerged
  *
  * How it works: there are two fields of random dots with the same density.
  * One is drawn only inside the letters, the other only outside them. Any
@@ -135,6 +138,7 @@ class GhostSignal extends HTMLElement {
       .filter(Boolean);
 
     this.palette = PALETTES[this.getAttribute('palette')] || PALETTES.green;
+    this.href = this.getAttribute('href');
 
     this.settings = {
       letterSpeed:     number('letter-speed', 0.5),
@@ -159,6 +163,9 @@ class GhostSignal extends HTMLElement {
       <style>
         :host { display: block; }
         canvas { display: block; width: 100%; height: auto; }
+        .signal-link { display: block; }
+        .signal-link[href] { cursor: pointer; }
+        .signal-link:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
         button, select { font: inherit; }
 
         .options-toggle {
@@ -179,7 +186,7 @@ class GhostSignal extends HTMLElement {
         .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
       </style>
 
-      <canvas role="img"></canvas>
+      <a class="signal-link"><canvas role="img"></canvas></a>
 
       <button class="options-toggle" aria-expanded="false">Signal options</button>
 
@@ -205,6 +212,7 @@ class GhostSignal extends HTMLElement {
     const find = (selector) => shadow.querySelector(selector);
 
     this.canvas = find('canvas');
+    this.link = find('.signal-link');   // has no href, so it is not a link yet
     this.ctx = this.canvas.getContext('2d');
     this.canvas.setAttribute('aria-label', this.alt);
     this.canvas.style.background = this.palette.background;
@@ -340,6 +348,15 @@ class GhostSignal extends HTMLElement {
       this.goTo('waiting', this.settings.delay * FPS);
     } else {
       this.goTo('on', this.holdLength());
+      this.enableLink();
+    }
+  }
+
+  // Turn the signal into a real link. Screen readers then announce it as
+  // a link named by the alt text, and it joins the keyboard Tab order.
+  enableLink() {
+    if (this.href && !this.link.hasAttribute('href')) {
+      this.link.setAttribute('href', this.href);
     }
   }
 
@@ -362,7 +379,10 @@ class GhostSignal extends HTMLElement {
 
     if (this.stage === 'waiting') {
       this.strength = 0;
-      if (finished) this.goTo('rise', random(90, 130));
+      if (finished) {
+        this.goTo('rise', random(90, 130));
+        this.enableLink();
+      }
     }
     else if (this.stage === 'on') {
       this.strength = 1;
